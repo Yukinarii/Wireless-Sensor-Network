@@ -1,4 +1,5 @@
 from flask import Flask, request, abort
+from flask_sockets import Sockets
 
 from linebot import (
     LineBotApi, WebhookHandler
@@ -9,13 +10,14 @@ from linebot.exceptions import (
 from linebot.models import *
 
 app = Flask(__name__)
+sockets = Sockets(app)
 
 # Channel Access Token
 line_bot_api = LineBotApi('7O73HJIwylbM9bQvBd4Lt1/QvKWxH3RaXFQi2GvfrSWJEP+rYbP9MeNlENq3qDACmttnsvaZVNpEkXnc1L9pRH9K+hee5UEun/ExyJBvYFnFC1gIxciS4Z+QZ42O37USyDOWbZemBkfBeKRqIU4f0wdB04t89/1O/w1cDnyilFU=')
 # Channel Secret
 handler = WebhookHandler('eeac4a6fb266c27b3618e6ae4dccf8c1')
 
-# 監聽所有來自 /callback 的 Post Request
+# Listen to all Post Request from /callback
 @app.route("/callback", methods=['POST'])
 def callback():
     # get X-Line-Signature header value
@@ -29,6 +31,13 @@ def callback():
     except InvalidSignatureError:
         abort(400)
     return 'OK'
+
+@sockets.route('/relay')
+def relay_msg(ws):
+    while not ws.closed:
+        message = ws.receive()
+        print(message)
+        ws.send(message)
 
 # 處理訊息
 @handler.add(MessageEvent, message=TextMessage)
