@@ -169,9 +169,10 @@ class input_cli:  #always open a receive slot for gateway
 					return_msg = return_msg + str(self.users_info[user]) + "\n"
 				if return_msg is None:
 					return_msg = "No users signup"
-				
+			
 				try:
-					line_bot_api.reply_message(self.replyToken, body)
+					msg = TextSendMessage(text = return_msg)
+					line_bot_api.reply_message(self.replyToken, msg)
 				except InvalidSignatureError:
 					abort(400)
 			else:
@@ -269,7 +270,6 @@ class cmd_handler:
 		# print('User Information:')
 		# for user in users_info:
 		# 	 print(str(users_info[user]))
-		SendMessage("SKT NO1", replyToken)
 		CLI = input_cli(users_info, self.RDS_db, LineMessage, replyToken)
 		CLI.run()
 
@@ -339,13 +339,13 @@ class cmd_handler:
 # Listen to all Post Request from /callback
 @app.route("/callback", methods=['POST'])
 def callback():
-	global cmd_handle
+    global cmd_handle
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
     # get request body as text
     # body = request.get_data(as_text=True)
-	json_message = request.get_json()
-	cmd_handle.execute(json_message['events'][0]['message']['text'], json_message['events'][0]['replyToken'])
+    json_message = request.get_json()
+    cmd_handle.execute(json_message['events'][0]['message']['text'], json_message['events'][0]['replyToken'])
     return 'OK'
 
 
