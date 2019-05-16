@@ -171,9 +171,9 @@ class input_cli:  #always open a receive slot for gateway
 					return_msg = "No users signup"
 				
 				try:
-		            line_bot_api.reply_message(self.replyToken, body)
-                except InvalidSignatureError:
-                    abort(400)
+					line_bot_api.reply_message(self.replyToken, body)
+				except InvalidSignatureError:
+					abort(400)
 			else:
 				print('No such command.')
 
