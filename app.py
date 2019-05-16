@@ -175,6 +175,9 @@ class input_cli:  #always open a receive slot for gateway
 			light.red_off()
 			light.green_off()
 
+		if return_msg is None:
+			return_msg = "No users signup"
+
 		return return_msg
 
 
@@ -337,15 +340,15 @@ def callback():
     # get request body as text
     # body = request.get_data(as_text=True)
 	json_message = request.get_json()
-	return_msg = cmd_handle.execute(json_messagen['events'][0]['message']['text'])
-
-	if return_msg is not None:
-		body = TextSendMessage(text = return_msg)
-		# invoke handle_message
-    	try:
-        	handler.handle(body, signature)
-    	except InvalidSignatureError:
-        	abort(400)
+	return_msg = cmd_handle.execute(json_message['events'][0]['message']['text'])
+	
+	body = TextSendMessage(text = return_msg)
+    try:
+		replyToken = json_message['events'][0]['replyToken']
+		line_bot_api.reply_message(replyToken, body)
+        # handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
     return 'OK'
 
 # reply message
@@ -358,7 +361,7 @@ def handle_message(event):
 if __name__ == "__main__":
 	global cmd_handle
 	cmd_handle = cmd_handler()
-	nfc_thread = threading.Thread(target = cmd_handle.nfc_checker())
+	# nfc_thread = threading.Thread(target = cmd_handle.nfc_checker())
 	# nfc_thread.start()
 
 	port = int(os.environ.get('PORT', 5000))
