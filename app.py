@@ -228,12 +228,12 @@ def user_signup(RDS_db, user_nfc_id, user_name, limitation_period, users_info):
 
 
 class cmd_handler:
-	def __init__():
+	def __init__(self):
 		global light, system_status
 		global user_name, limitation_period
 
-		self.nfc_reader = Pn532_i2c()
-		self.nfc_reader.SAMconfigure()
+		#self.nfc_reader = Pn532_i2c()
+		#self.nfc_reader.SAMconfigure()
 		self.door = DOOR()
 		light = LIGHT()
 		self.RDS_db = DATABASE(RDS_DB_PARAMETER['HOST'], RDS_DB_PARAMETER['USER'], RDS_DB_PARAMETER['PASS'], RDS_DB_PARAMETER['DBNAME'])
@@ -255,7 +255,7 @@ class cmd_handler:
 			print(str(users_info[user]))
 		
 		input_cli(users_info, self.RDS_db, LineMessage)
-
+		'''
 		try:
 			print('Read nfc...')
 			raw_nfc_data = self.nfc_reader.read_mifare().get_data()
@@ -315,6 +315,7 @@ class cmd_handler:
 
 		except KeyboardInterrupt:
 			pass
+		'''
 
 
 # Listen to all Post Request from /callback
@@ -341,6 +342,7 @@ def handle_message(event):
 
 
 if __name__ == "__main__":
-	global cmd_handle = cmd_handler()
+	global cmd_handle
+	cmd_handle = cmd_handler()
 	port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
