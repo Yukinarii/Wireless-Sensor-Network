@@ -140,7 +140,8 @@ class input_cli:  #always open a receive slot for gateway
 		global system_status, light
 		global user_name, limitation_period
 		print(self.LineMessage)
-		command = LineMessage.split() # input('>>').split()
+		command = self.LineMessage.split() # input('>>').split()
+		return_msg = None
 
 		try:
 			if command[0] == 'signup': #yello led
@@ -164,7 +165,7 @@ class input_cli:  #always open a receive slot for gateway
 			elif command[0] == 'print':
 				#[TODO] publish
 				for user in self.users_info:
-					print(str(self.users_info[user]))
+					return_msg = return_msg + str(self.users_info[user]) + "\n"
 			else:
 				print('No such command.')
 
@@ -173,6 +174,13 @@ class input_cli:  #always open a receive slot for gateway
 			light.yellow_off()
 			light.red_off()
 			light.green_off()
+
+		return return_msg
+
+
+def SendMessage(Message, push_token):
+	msg = TextSendMessage(text = Message)
+	line_bot_api.push_message(push_token, msg)
 
 
 def getUserIDs(RDS_db):
@@ -254,8 +262,11 @@ class cmd_handler:
 		# 	 print(str(users_info[user]))
 		
 		CLI = input_cli(users_info, self.RDS_db, LineMessage)
-		CLI.run()
-		'''
+		return_msg = CLI.run()
+		print(return_msg)
+		return return_msg
+
+	def nfc_checker(self):
 		try:
 			print('Read nfc...')
 			raw_nfc_data = self.nfc_reader.read_mifare().get_data()
@@ -315,23 +326,25 @@ class cmd_handler:
 
 		except KeyboardInterrupt:
 			pass
-		'''
 
 
 # Listen to all Post Request from /callback
 @app.route("/callback", methods=['POST'])
 def callback():
-	global cmd_handle
+    global cmd_handle
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
     # get request body as text
-    body = request.get_data(as_text=True)
-	cmd_handle.execute(body)
-    # handle webhook body
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
+    # body = request.get_data(as_text=True)
+    json_message = request.get_json()
+    return_msg = cmd_handle.execute(json_messagen['events'][0]['message']['text'])
+    if return_msg is not None:
+	body = TextSendMessage(text = return_msg)
+	# invoke handle_message
+    	try:
+            handler.handle(body, signature)
+    	except InvalidSignatureError:
+            abort(400)
     return 'OK'
 
 # reply message
@@ -344,5 +357,10 @@ def handle_message(event):
 if __name__ == "__main__":
 	global cmd_handle
 	cmd_handle = cmd_handler()
+	nfc_thread = threading.Thread(target = cmd_handle.nfc_checker())
+	# nfc_thread.start()
+
 	port = int(os.environ.get('PORT', 5000))
 	app.run(host='0.0.0.0', port=port)
+	
+	# nfc_thread.join()
