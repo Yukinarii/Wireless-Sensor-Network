@@ -169,14 +169,11 @@ class input_cli:  #always open a receive slot for gateway
 					return_msg = return_msg + str(self.users_info[user]) + "\n"
 				if return_msg is None:
 					return_msg = "No users signup"
-			
-				try:
-					msg = TextSendMessage(text = return_msg)
-					line_bot_api.reply_message(self.replyToken, msg)
-				except InvalidSignatureError:
-					abort(400)
+				ReplyMessage(return_msg, self.replyToken)
+
 			else:
 				print('No such command.')
+				ReplyMessage('No such command.', self.replyToken)
 
 		except Exception as e:
 			print(e)
@@ -192,6 +189,13 @@ def SendMessage(Message, push_token):
 	except InvalidSignatureError:
 	    abort(400)
 
+
+def ReplyMessage(Message, replyToken):
+    try:
+        msg = TextSendMessage(text = Message)
+        line_bot_api.reply_message(replyToken, msg)
+    except InvalidSignatureError:
+        abort(400)
 
 def getUserIDs(RDS_db):
 	users_info = {}
@@ -275,6 +279,7 @@ class cmd_handler:
 
 
 	def nfc_checker(self):
+		global GroupId
 		try:
 			print('Read nfc...')
 			raw_nfc_data = self.nfc_reader.read_mifare().get_data()
@@ -298,6 +303,7 @@ class cmd_handler:
 						self.door.lock()
 					else:
 						#[TODO] publish
+						SendMessage("This ID is expired", GroupId)
 						print('This ID is expired.')
 						light.red_on()
 						users_info.pop(nfc_data)
@@ -309,7 +315,8 @@ class cmd_handler:
 
 				else:
 					#[TODO] publish
-					print('Ilegal ID!')
+					SendMessage("Illegal ID!", GroupId)
+					print('Illegal ID!')
 					light.red_on()
 					time.sleep(2)
 					light.red_off()
@@ -320,6 +327,7 @@ class cmd_handler:
 				print('----------------------------------')
 				if signup_time is None:
 					#[TODO] publish
+					SendMessage("This NFC ID has already existed", GroupId)
 					print('This NFC ID has already existed.')
 				else:
 					print('Sign up a new user: ')
@@ -331,6 +339,7 @@ class cmd_handler:
 				light.yellow_off()
 				system_status = 'wait'
 				#[TODO] publish message "signup ok"
+				SendMessage("signup ok", GroupId)
 
 		except KeyboardInterrupt:
 			pass
@@ -340,12 +349,17 @@ class cmd_handler:
 @app.route("/callback", methods=['POST'])
 def callback():
     global cmd_handle
+	global GroupId
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
     # get request body as text
     # body = request.get_data(as_text=True)
     json_message = request.get_json()
-    cmd_handle.execute(json_message['events'][0]['message']['text'], json_message['events'][0]['replyToken'])
+	message_text = json_message['events'][0]['message']['text']
+	replyToken = json_message['events'][0]['replyToken']
+	if GroupId is None:
+	    GroupId = json_message['events'][0]['source']['groupId']
+    cmd_handle.execute(message_text, replyToken)
     return 'OK'
 
 
@@ -357,8 +371,9 @@ def handle_message(event):
 
 
 if __name__ == "__main__":
-	global cmd_handle
+	global cmd_handle, GroupId
 	cmd_handle = cmd_handler()
+	GroupId = None
 	# nfc_thread = threading.Thread(target = cmd_handle.nfc_checker())
 	# nfc_thread.start()
 
