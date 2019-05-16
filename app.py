@@ -334,18 +334,19 @@ class cmd_handler:
 # Listen to all Post Request from /callback
 @app.route("/callback", methods=['POST'])
 def callback():
-	global cmd_handle
+    global cmd_handle
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
     # get request body as text
     # body = request.get_data(as_text=True)
-	json_message = request.get_json()
-	return_msg = cmd_handle.execute(json_message['events'][0]['message']['text'])
+    json_message = request.get_json()
+    return_msg = cmd_handle.execute(json_message['events'][0]['message']['text'])
 	
-	body = TextSendMessage(text = return_msg)
+    body = TextSendMessage(text = return_msg)
+	
     try:
-		replyToken = json_message['events'][0]['replyToken']
-		line_bot_api.reply_message(replyToken, body)
+	replyToken = json_message['events'][0]['replyToken']
+	line_bot_api.reply_message(replyToken, body)
         # handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
