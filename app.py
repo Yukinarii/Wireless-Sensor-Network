@@ -131,10 +131,11 @@ class DATABASE():
 
 
 class input_cli:  #always open a receive slot for gateway
-	def __init__(self, users_info, RDS_db, LineMessage):
+	def __init__(self, users_info, RDS_db, LineMessage, replyToken):
 		self.users_info = users_info
 		self.RDS_db = RDS_db
 		self.LineMessage = LineMessage
+		self.replyToken = replyToken
 
 	def run(self):
 		global system_status, light
@@ -166,6 +167,13 @@ class input_cli:  #always open a receive slot for gateway
 				#[TODO] publish
 				for user in self.users_info:
 					return_msg = return_msg + str(self.users_info[user]) + "\n"
+				if return_msg is None:
+					return_msg = "No users signup"
+				
+				try:
+		            line_bot_api.reply_message(replyToken, body)
+                except InvalidSignatureError:
+                    abort(400)
 			else:
 				print('No such command.')
 
@@ -175,15 +183,13 @@ class input_cli:  #always open a receive slot for gateway
 			light.red_off()
 			light.green_off()
 
-		if return_msg is None:
-			return_msg = "No users signup"
-
-		return return_msg
-
 
 def SendMessage(Message, push_token):
-	msg = TextSendMessage(text = Message)
-	line_bot_api.push_message(push_token, msg)
+	try:
+	    msg = TextSendMessage(text = Message)
+	    line_bot_api.push_message(push_token, msg)
+	except InvalidSignatureError:
+	    abort(400)
 
 
 def getUserIDs(RDS_db):
@@ -254,7 +260,7 @@ class cmd_handler:
 		cursor = RDS_db.query(cmd)
 		RDS_db.commit()'''
 
-	def execute(self, LineMessage):
+	def execute(self, LineMessage, replyToken):
 		global light, system_status
 		global user_name, limitation_period
 
@@ -263,11 +269,10 @@ class cmd_handler:
 		# print('User Information:')
 		# for user in users_info:
 		# 	 print(str(users_info[user]))
-		
-		CLI = input_cli(users_info, self.RDS_db, LineMessage)
-		return_msg = CLI.run()
-		print(return_msg)
-		return return_msg
+		SendMessage("SKT NO1", replyToken)
+		CLI = input_cli(users_info, self.RDS_db, LineMessage, replyToken)
+		CLI.run()
+
 
 	def nfc_checker(self):
 		try:
@@ -334,23 +339,15 @@ class cmd_handler:
 # Listen to all Post Request from /callback
 @app.route("/callback", methods=['POST'])
 def callback():
-    global cmd_handle
+	global cmd_handle
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
     # get request body as text
     # body = request.get_data(as_text=True)
-    json_message = request.get_json()
-    return_msg = cmd_handle.execute(json_message['events'][0]['message']['text'])
-	
-    body = TextSendMessage(text = return_msg)
-	
-    try:
-	replyToken = json_message['events'][0]['replyToken']
-	line_bot_api.reply_message(replyToken, body)
-        # handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
+	json_message = request.get_json()
+	cmd_handle.execute(json_message['events'][0]['message']['text'], json_message['events'][0]['replyToken'])
     return 'OK'
+
 
 # reply message
 @handler.add(MessageEvent, message=TextMessage)
