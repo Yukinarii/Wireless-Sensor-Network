@@ -140,40 +140,39 @@ class input_cli:  #always open a receive slot for gateway
 		global system_status, light
 		global user_name, limitation_period
 		print(self.LineMessage)
-		while True:
-			command = LineMessage.split() # input('>>').split()
+		command = LineMessage.split() # input('>>').split()
 
-			try:
-				if command[0] == 'signup': #yello led
-					system_status = 'signup'
-					light.yellow_on()
+		try:
+			if command[0] == 'signup': #yello led
+				system_status = 'signup'
+				light.yellow_on()
 
-					user_name = command[1]
-					limitation_period = command[2]
+				user_name = command[1]
+				limitation_period = command[2]
 
-					time.sleep(5)
-					if system_status == 'signup':
-						light.yellow_off()
-						system_status = 'wait'
+				time.sleep(5)
+				if system_status == 'signup':
+					light.yellow_off()
+					system_status = 'wait'
 
 
-				elif command[0] == 'delete':
-					self.users_info.clear()
-					cmd = "delete from user_info where 1"
-					cursor = self.RDS_db.query(cmd)
-					self.RDS_db.commit()
-				elif command[0] == 'print':
-					#[TODO] publish
-					for user in self.users_info:
-						print(str(self.users_info[user]))
-				else:
-					print('No such command.')
+			elif command[0] == 'delete':
+				self.users_info.clear()
+				cmd = "delete from user_info where 1"
+				cursor = self.RDS_db.query(cmd)
+				self.RDS_db.commit()
+			elif command[0] == 'print':
+				#[TODO] publish
+				for user in self.users_info:
+					print(str(self.users_info[user]))
+			else:
+				print('No such command.')
 
-			except Exception as e:
-				print(e)
-				light.yellow_off()
-				light.red_off()
-				light.green_off()
+		except Exception as e:
+			print(e)
+			light.yellow_off()
+			light.red_off()
+			light.green_off()
 
 
 def getUserIDs(RDS_db):
@@ -254,7 +253,8 @@ class cmd_handler:
 		# for user in users_info:
 		# 	 print(str(users_info[user]))
 		
-		input_cli(users_info, self.RDS_db, LineMessage)
+		CLI = input_cli(users_info, self.RDS_db, LineMessage)
+		CLI.run()
 		'''
 		try:
 			print('Read nfc...')
@@ -321,12 +321,12 @@ class cmd_handler:
 # Listen to all Post Request from /callback
 @app.route("/callback", methods=['POST'])
 def callback():
-    global cmd_handle
+	global cmd_handle
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
     # get request body as text
     body = request.get_data(as_text=True)
-    cmd_handle.execute(body)
+	cmd_handle.execute(body)
     # handle webhook body
     try:
         handler.handle(body, signature)
@@ -342,7 +342,7 @@ def handle_message(event):
 
 
 if __name__ == "__main__":
-    global cmd_handle
-    cmd_handle = cmd_handler()
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+	global cmd_handle
+	cmd_handle = cmd_handler()
+	port = int(os.environ.get('PORT', 5000))
+	app.run(host='0.0.0.0', port=port)
