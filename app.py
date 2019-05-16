@@ -48,6 +48,7 @@ class DOOR():
 		dc = self.angle_to_duty_cycle(0)
 		self.PWM.ChangeDutyCycle(dc)
 		time.sleep(0.5)
+		print("Create DOOR Object")
 
 	def lock(self):
 		dc = self.angle_to_duty_cycle(0)
@@ -138,7 +139,7 @@ class input_cli:  #always open a receive slot for gateway
 	def run(self):
 		global system_status, light
 		global user_name, limitation_period
-
+		print(self.LineMessage)
 		while True:
 			command = LineMessage.split() # input('>>').split()
 
@@ -239,20 +240,19 @@ class cmd_handler:
 		self.RDS_db = DATABASE(RDS_DB_PARAMETER['HOST'], RDS_DB_PARAMETER['USER'], RDS_DB_PARAMETER['PASS'], RDS_DB_PARAMETER['DBNAME'])
 		self.RDS_db.connect()
 
-
 		'''cmd = "INSERT INTO user_info(nfc_id, name, signup_time, vaild_time) VALUES (\'%s\',\'%s\',\'%s\',\'%s\')" %('9999','banana',strftime("%Y-%m-%d %H:%M:%S",localtime()),'2019-05-09 18:00:00')
 		cursor = RDS_db.query(cmd)
 		RDS_db.commit()'''
 
-	def execute(LineMessage):
+	def execute(self, LineMessage):
 		global light, system_status
 		global user_name, limitation_period
 
 		# retrieve user_infos
 		users_info = getUserIDs(self.RDS_db)
-		print('User Information:')
-		for user in users_info:
-			print(str(users_info[user]))
+		# print('User Information:')
+		# for user in users_info:
+		# 	 print(str(users_info[user]))
 		
 		input_cli(users_info, self.RDS_db, LineMessage)
 		'''
@@ -321,12 +321,12 @@ class cmd_handler:
 # Listen to all Post Request from /callback
 @app.route("/callback", methods=['POST'])
 def callback():
-	global cmd_handle
+    global cmd_handle
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
     # get request body as text
     body = request.get_data(as_text=True)
-	global_handle.execute(body)
+    cmd_handle.execute(body)
     # handle webhook body
     try:
         handler.handle(body, signature)
@@ -342,7 +342,7 @@ def handle_message(event):
 
 
 if __name__ == "__main__":
-	global cmd_handle
-	cmd_handle = cmd_handler()
-	port = int(os.environ.get('PORT', 5000))
+    global cmd_handle
+    cmd_handle = cmd_handler()
+    port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
