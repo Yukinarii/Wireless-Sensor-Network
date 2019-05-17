@@ -8,6 +8,7 @@ import pymysql
 import os
 from py532lib.i2c import * #pip3 install py532lib
 from flask import Flask, request, abort
+from celery import Celery
 
 from linebot import (
 	LineBotApi, WebhookHandler
@@ -142,7 +143,7 @@ class input_cli:  #always open a receive slot for gateway
 		global user_name, limitation_period
 		print(self.LineMessage)
 		command = self.LineMessage.split() # input('>>').split()
-		return_msg = None
+		return_msg = ''
 
 		try:
 			if command[0] == 'signup': #yello led
@@ -167,7 +168,7 @@ class input_cli:  #always open a receive slot for gateway
 				#[TODO] publish
 				for user in self.users_info:
 					return_msg = return_msg + str(self.users_info[user]) + "\n"
-				if return_msg is None:
+				if return_msg is '':
 					return_msg = "No users signup"
 				ReplyMessage(return_msg, self.replyToken)
 
@@ -258,6 +259,7 @@ class cmd_handler:
 		self.nfc_reader.SAMconfigure()
 		self.door = DOOR()
 		light = LIGHT()
+		
 		# self.RDS_db = DATABASE(RDS_DB_PARAMETER['HOST'], RDS_DB_PARAMETER['USER'], RDS_DB_PARAMETER['PASS'], RDS_DB_PARAMETER['DBNAME'])
 		# self.RDS_db.connect()
 		self.RDS_db =RDS_db
@@ -333,6 +335,7 @@ class cmd_handler:
 					    #[TODO] publish
 					    SendMessage("This NFC ID has already existed", GroupId)
 					    print('This NFC ID has already existed.')
+						continue
 				    else:
 					    print('Sign up a new user: ')
 					    print('NFC ID: %s' %(nfc_data))
@@ -361,7 +364,7 @@ def callback():
     json_message = request.get_json()
     message_text = json_message['events'][0]['message']['text']
     replyToken = json_message['events'][0]['replyToken']
-	if GroupId is None:
+    if GroupId is None:
         GroupId = json_message['events'][0]['source']['groupId']
     cmd_handle.execute(message_text, replyToken)
     return 'OK'
@@ -373,6 +376,10 @@ def handle_message(event):
     message = TextSendMessage(text=event.message.text)
     line_bot_api.reply_message(event.reply_token, message)
 
+def RunApp():
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, threaded = True, debug = False)
+
 
 if __name__ == "__main__":
 	global cmd_handle, GroupId
@@ -380,12 +387,15 @@ if __name__ == "__main__":
 	RDS_db = DATABASE(RDS_DB_PARAMETER['HOST'], RDS_DB_PARAMETER['USER'], RDS_DB_PARAMETER['PASS'], RDS_DB_PARAMETER['DBNAME'])
 	RDS_db.connect()
 	users_info = getUserIDs(RDS_db)
-	cmd_handle = cmd_handler()
-	GroupId = None
-	nfc_thread = threading.Thread(target = cmd_handle.nfc_checker())
-	nfc_thread.start()
+	cmd_handle = cmd_handler(users_info, RDS_db)
 
-	port = int(os.environ.get('PORT', 5000))
-	app.run(host='0.0.0.0', port=port)
+	GroupId = None
+
+	#port = int(os.environ.get('PORT', 5000))
+	#app.run(host='0.0.0.0', port=port, threaded = True, debug = False)
 	
+	nfc_thread = threading.Thread(target = RunApp)
+	nfc_thread.start()
+	cmd_handle.nfc_checker()
+
 	nfc_thread.join()
