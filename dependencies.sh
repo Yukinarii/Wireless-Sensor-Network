@@ -8,4 +8,4 @@ unzip ngrok-stable-linux-arm.zip
 
 sudo mv ngrok /bin
 
-pip install -r requirements.txt
+pip3 install -r requirements.txt
