@@ -182,10 +182,10 @@ class input_cli:  #always open a receive slot for gateway
 			light.green_off()
 
 
-def SendMessage(Message, push_token):
+def SendMessage(Message, pushToken):
 	try:
 	    msg = TextSendMessage(text = Message)
-	    line_bot_api.push_message(push_token, msg)
+	    line_bot_api.push_message(pushToken, msg)
 	except InvalidSignatureError:
 	    abort(400)
 
@@ -254,8 +254,8 @@ class cmd_handler:
 		global light, system_status
 		global user_name, limitation_period
 
-		#self.nfc_reader = Pn532_i2c()
-		#self.nfc_reader.SAMconfigure()
+		self.nfc_reader = Pn532_i2c()
+		self.nfc_reader.SAMconfigure()
 		self.door = DOOR()
 		light = LIGHT()
 		self.RDS_db = DATABASE(RDS_DB_PARAMETER['HOST'], RDS_DB_PARAMETER['USER'], RDS_DB_PARAMETER['PASS'], RDS_DB_PARAMETER['DBNAME'])
@@ -279,67 +279,72 @@ class cmd_handler:
 
 
 	def nfc_checker(self):
+		global light, system_status
+		global user_name, limitation_period
 		global GroupId
+
+		users_info = getUserIDs(self.RDS_db)
 		try:
-			print('Read nfc...')
-			raw_nfc_data = self.nfc_reader.read_mifare().get_data()
-			nfc_data = list((' '.join(hex(x)[2:] for x in raw_nfc_data)).split(' '))
-			nfc_data.pop(8)
-			nfc_data.pop(8)
-			nfc_data.pop(8)
-			nfc_data = ''.join(str(x) for x in nfc_data)
+			while True:
+			    print('Read nfc...')
+			    raw_nfc_data = self.nfc_reader.read_mifare().get_data()
+			    nfc_data = list((' '.join(hex(x)[2:] for x in raw_nfc_data)).split(' '))
+			    nfc_data.pop(8)
+			    nfc_data.pop(8)
+			    nfc_data.pop(8)
+			    nfc_data = ''.join(str(x) for x in nfc_data)
 
-			print('----------------------------------')
-			print('Received NFC ID: %s' %(nfc_data))
-			if system_status == 'wait':
+			    print('----------------------------------')
+			    print('Received NFC ID: %s' %(nfc_data))
+			    if system_status == 'wait':
 			
-				if nfc_data in users_info:
-					if isExpired(users_info[nfc_data]) is False:
-						print('This ID is recognized. Open the door.')
-						light.green_on()
-						self.door.unlock()
-						time.sleep(3)
-						light.green_off()
-						self.door.lock()
-					else:
-						#[TODO] publish
-						SendMessage("This ID is expired", GroupId)
-						print('This ID is expired.')
-						light.red_on()
-						users_info.pop(nfc_data)
-						cmd = "delete from user_info where nfc_id = \'%s\'" %(nfc_data)
-						self.RDS_db.query(cmd)
-						self.RDS_db.commit()
-						time.sleep(2)
-						light.red_off()
+				    if nfc_data in users_info:
+					    if isExpired(users_info[nfc_data]) is False:
+						    print('This ID is recognized. Open the door.')
+						    light.green_on()
+						    self.door.unlock()
+						    time.sleep(3)
+						    light.green_off()
+						    self.door.lock()
+					    else:
+						    #[TODO] publish
+						    SendMessage("This ID is expired", GroupId)
+						    print('This ID is expired.')
+						    light.red_on()
+						    users_info.pop(nfc_data)
+						    cmd = "delete from user_info where nfc_id = \'%s\'" %(nfc_data)
+						    self.RDS_db.query(cmd)
+						    self.RDS_db.commit()
+						    time.sleep(2)
+						    light.red_off()
 
-				else:
-					#[TODO] publish
-					SendMessage("Illegal ID!", GroupId)
-					print('Illegal ID!')
-					light.red_on()
-					time.sleep(2)
-					light.red_off()
+				    else:
+					    #[TODO] publish
+					    SendMessage("Illegal ID!", GroupId)
+					    print('Illegal ID!')
+					    light.red_on()
+					    time.sleep(2)
+					    light.red_off()
 
-			elif system_status == 'signup':
+			    elif system_status == 'signup':
 			
-				signup_time, vaild_time = user_signup(self.RDS_db, nfc_data, user_name, limitation_period, users_info)
-				print('----------------------------------')
-				if signup_time is None:
-					#[TODO] publish
-					SendMessage("This NFC ID has already existed", GroupId)
-					print('This NFC ID has already existed.')
-				else:
-					print('Sign up a new user: ')
-					print('NFC ID: %s' %(nfc_data))
-					print('USER NAME: %s' %(user_name))
-					print('SIGNUP TIME: %s' %(signup_time))
-					print('VAILD TIME: %s' %(vaild_time))
+				    signup_time, vaild_time = user_signup(self.RDS_db, nfc_data, user_name, limitation_period, users_info)
+				    print('----------------------------------')
+				    if signup_time is None:
+					    #[TODO] publish
+					    SendMessage("This NFC ID has already existed", GroupId)
+					    print('This NFC ID has already existed.')
+				    else:
+					    print('Sign up a new user: ')
+					    print('NFC ID: %s' %(nfc_data))
+					    print('USER NAME: %s' %(user_name))
+					    print('SIGNUP TIME: %s' %(signup_time))
+					    print('VAILD TIME: %s' %(vaild_time))
 
-				light.yellow_off()
-				system_status = 'wait'
-				#[TODO] publish message "signup ok"
-				SendMessage("signup ok", GroupId)
+				    light.yellow_off()
+				    system_status = 'wait'
+				    #[TODO] publish message "signup ok"
+				    SendMessage("signup ok", GroupId)
 
 		except KeyboardInterrupt:
 			pass
@@ -349,16 +354,16 @@ class cmd_handler:
 @app.route("/callback", methods=['POST'])
 def callback():
     global cmd_handle
-	global GroupId
+    global GroupId
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
     # get request body as text
     # body = request.get_data(as_text=True)
     json_message = request.get_json()
-	message_text = json_message['events'][0]['message']['text']
-	replyToken = json_message['events'][0]['replyToken']
+    message_text = json_message['events'][0]['message']['text']
+    replyToken = json_message['events'][0]['replyToken']
 	if GroupId is None:
-	    GroupId = json_message['events'][0]['source']['groupId']
+        GroupId = json_message['events'][0]['source']['groupId']
     cmd_handle.execute(message_text, replyToken)
     return 'OK'
 
@@ -374,10 +379,10 @@ if __name__ == "__main__":
 	global cmd_handle, GroupId
 	cmd_handle = cmd_handler()
 	GroupId = None
-	# nfc_thread = threading.Thread(target = cmd_handle.nfc_checker())
-	# nfc_thread.start()
+	nfc_thread = threading.Thread(target = cmd_handle.nfc_checker())
+	nfc_thread.start()
 
 	port = int(os.environ.get('PORT', 5000))
 	app.run(host='0.0.0.0', port=port)
 	
-	# nfc_thread.join()
+	nfc_thread.join()
