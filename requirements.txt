@@ -1,3 +1,4 @@
-line-bot-sdk
 flask
-flask_sockets
+line-bot-sdk
+pymysql
+py532lib
