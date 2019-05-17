@@ -250,7 +250,7 @@ def user_signup(RDS_db, user_nfc_id, user_name, limitation_period, users_info):
 
 
 class cmd_handler:
-	def __init__(self):
+	def __init__(self, users_info, RDS_db):
 		global light, system_status
 		global user_name, limitation_period
 
@@ -258,9 +258,10 @@ class cmd_handler:
 		self.nfc_reader.SAMconfigure()
 		self.door = DOOR()
 		light = LIGHT()
-		self.RDS_db = DATABASE(RDS_DB_PARAMETER['HOST'], RDS_DB_PARAMETER['USER'], RDS_DB_PARAMETER['PASS'], RDS_DB_PARAMETER['DBNAME'])
-		self.RDS_db.connect()
-
+		# self.RDS_db = DATABASE(RDS_DB_PARAMETER['HOST'], RDS_DB_PARAMETER['USER'], RDS_DB_PARAMETER['PASS'], RDS_DB_PARAMETER['DBNAME'])
+		# self.RDS_db.connect()
+		self.RDS_db =RDS_db
+		self.users_info = users_info
 		'''cmd = "INSERT INTO user_info(nfc_id, name, signup_time, vaild_time) VALUES (\'%s\',\'%s\',\'%s\',\'%s\')" %('9999','banana',strftime("%Y-%m-%d %H:%M:%S",localtime()),'2019-05-09 18:00:00')
 		cursor = RDS_db.query(cmd)
 		RDS_db.commit()'''
@@ -270,11 +271,10 @@ class cmd_handler:
 		global user_name, limitation_period
 
 		# retrieve user_infos
-		users_info = getUserIDs(self.RDS_db)
 		# print('User Information:')
 		# for user in users_info:
 		# 	 print(str(users_info[user]))
-		CLI = input_cli(users_info, self.RDS_db, LineMessage, replyToken)
+		CLI = input_cli(self.users_info, self.RDS_db, LineMessage, replyToken)
 		CLI.run()
 
 
@@ -282,8 +282,7 @@ class cmd_handler:
 		global light, system_status
 		global user_name, limitation_period
 		global GroupId
-
-		users_info = getUserIDs(self.RDS_db)
+		
 		try:
 			while True:
 			    print('Read nfc...')
@@ -298,8 +297,8 @@ class cmd_handler:
 			    print('Received NFC ID: %s' %(nfc_data))
 			    if system_status == 'wait':
 			
-				    if nfc_data in users_info:
-					    if isExpired(users_info[nfc_data]) is False:
+				    if nfc_data in self.users_info:
+					    if isExpired(self.users_info[nfc_data]) is False:
 						    print('This ID is recognized. Open the door.')
 						    light.green_on()
 						    self.door.unlock()
@@ -311,7 +310,7 @@ class cmd_handler:
 						    SendMessage("This ID is expired", GroupId)
 						    print('This ID is expired.')
 						    light.red_on()
-						    users_info.pop(nfc_data)
+						    self.users_info.pop(nfc_data)
 						    cmd = "delete from user_info where nfc_id = \'%s\'" %(nfc_data)
 						    self.RDS_db.query(cmd)
 						    self.RDS_db.commit()
@@ -328,7 +327,7 @@ class cmd_handler:
 
 			    elif system_status == 'signup':
 			
-				    signup_time, vaild_time = user_signup(self.RDS_db, nfc_data, user_name, limitation_period, users_info)
+				    signup_time, vaild_time = user_signup(self.RDS_db, nfc_data, user_name, limitation_period, self.users_info)
 				    print('----------------------------------')
 				    if signup_time is None:
 					    #[TODO] publish
@@ -377,6 +376,10 @@ def handle_message(event):
 
 if __name__ == "__main__":
 	global cmd_handle, GroupId
+	
+	RDS_db = DATABASE(RDS_DB_PARAMETER['HOST'], RDS_DB_PARAMETER['USER'], RDS_DB_PARAMETER['PASS'], RDS_DB_PARAMETER['DBNAME'])
+	RDS_db.connect()
+	users_info = getUserIDs(RDS_db)
 	cmd_handle = cmd_handler()
 	GroupId = None
 	nfc_thread = threading.Thread(target = cmd_handle.nfc_checker())
