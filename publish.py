@@ -5,7 +5,8 @@ import json
 import Adafruit_DHT
 import time
 import threading
-import Crypto.Cipher import AES
+from Crypto.Cipher import AES
+from binascii import b2a_hex, a2b_hex
 
 DHT_PIN = 4
 
@@ -14,10 +15,8 @@ class prpcrypt():
     def __init__(self, key):  
         self.key = key  
         self.mode = AES.MODE_CBC  
-       
     def encrypt(self, text):  
         cryptor = AES.new(self.key, self.mode, self.key)  
-        #這裏密鑰key 長度必須為16（AES-128）、24（AES-192）、或32（AES-256）Bytes 長度.目前AES-128足夠用  
         length = 16  
         count = len(text)  
     if(count % length != 0) :  
@@ -26,7 +25,6 @@ class prpcrypt():
         add = 0  
         text = text + ('\0' * add)  
         self.ciphertext = cryptor.encrypt(text)  
-
         return b2a_hex(self.ciphertext)  
 
     def decrypt(self, text):  
