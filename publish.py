@@ -6,31 +6,39 @@ import Adafruit_DHT
 import time
 import threading
 from Crypto.Cipher import AES
-from binascii import b2a_hex, a2b_hex
+import base64
 
 DHT_PIN = 4
 
-# https://www.itread01.com/content/1507657101.html
+# https://www.itread01.com/content/1547711886.html
 class prpcrypt():  
     def __init__(self, key):  
         self.key = key  
         self.mode = AES.MODE_CBC  
+    
     def encrypt(self, text):  
-        cryptor = AES.new(self.key, self.mode, self.key)  
-        length = 16  
-        count = len(text)  
-    if(count % length != 0) :  
-            add = length - (count % length)  
-    else:  
-        add = 0  
-        text = text + ('\0' * add)  
-        self.ciphertext = cryptor.encrypt(text)  
-        return b2a_hex(self.ciphertext)  
+        iv = '0102030405060708'
+        pad = lambda s: s + (16 - len(s)%16) * chr(16 - len(s)%16)
+        text = pad(text)
+        
+        cipher = AES.new(self.key.encode('utf8'), self.mode, iv.encode('utf8'))
+        encryptedbytes = cipher.encrypt(text.encode('utf8'))
+
+        encodestrs = base64.b64encode(encryptedbytes)
+        enctext = encodestrs.decode(‘utf8‘)
+        return enctext
 
     def decrypt(self, text):  
-        cryptor = AES.new(self.key, self.mode, self.key)  
-        plain_text = cryptor.decrypt(a2b_hex(text))  
-        return plain_text.rstrip('\0')
+        vi = '0102030405060708'
+        text = text.encode('utf8')
+        encodebytes = base64.decodebytes(text)
+
+        cipher = AES.new(self.key.encode('utf8'), self.mode, iv.encode('utf8'))
+        text_decrypted = cipher.decrypt(encodebytes)
+        unpad = lambda s: s[0:-s[-1]]
+        text_decrypted = unpad(text_decrypted)
+        text_decrypted = text_decrypted.decode('utf8')
+        return text_decrypted
 
 class DHT_fetcher:
     def __init__(self):
@@ -47,19 +55,18 @@ class DHT_fetcher:
             if humidity is not None and temperature is not None:
                 self.humidity = humidity
                 self.temperature = temperature
-            time.sleep(5)
-    
-    def start_tmp_thread(self):
-        threading.Thread(target = self.get_DHT_data).start()
+                break
+            time.sleep(1)
+
 
 def main():
     MQTTTopicServerIP = "localhost"
     MQTTTopicServerPort = 1883
     MQTTTopicName = "wsn_lab/test"
-    pc = prpcrypt(key = '107062533')
-    gpio_setup()
+    pc = prpcrypt(key = '0000000107062533')
+
     fetcher = DHT_fetcher()
-    fetcher.start_tmp_thread()
+    fetcher.get_DHT_data()
     
     Message = ""
     while fetcher.temperature is None:
@@ -71,4 +78,7 @@ def main():
 
     mqttc = mqtt.Client("python_pub")
     mqttc.connect(MQTTTopicServerIP, MQTTTopicServerPort)
-    smqttc.publish(MQTTTopicName, EncryptMessage)
+    print(EncryptMessage)
+    mqttc.publish(MQTTTopicName, EncryptMessage)
+
+if __name__ == '__main__': main()
