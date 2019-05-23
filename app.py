@@ -8,7 +8,7 @@ import pymysql
 import os
 from py532lib.i2c import * #pip3 install py532lib
 from flask import Flask, request, abort
-from celery import Celery
+from picamera import PiCamera
 
 from linebot import (
 	LineBotApi, WebhookHandler
@@ -17,6 +17,9 @@ from linebot.exceptions import (
     InvalidSignatureError
 )
 from linebot.models import *
+from imgurpython import ImgurClient
+from config import client_id, client_secret, access_token, refresh_token
+
 
 # Line BOT
 app = Flask(__name__)
@@ -171,7 +174,12 @@ class input_cli:  #always open a receive slot for gateway
 				if return_msg is '':
 					return_msg = "No users signup"
 				ReplyMessage(return_msg, self.replyToken)
-
+			elif command[0] == 'camera':
+				capture_pic()
+				image_url = upload_image()
+				return_msg = ImageSendMessage(original_url = image_url,
+				                              preview_image_url = image_url)
+				ReplyMessage(return_msg, self.replyToken)
 			else:
 				print('No such command.')
 				ReplyMessage('No such command.', self.replyToken)
@@ -249,6 +257,22 @@ def user_signup(RDS_db, user_nfc_id, user_name, limitation_period, users_info):
 
 	return signup_time, user_info['vaild_time']
 
+def capture_pic():
+	with PiCamera() as camera:
+		camera.resolution = (320, 240)
+		camera.capture("./request.jpg")
+
+def upload_image():
+	client = ImgurClient(client_id, client_secret, access_token, refresh_token)
+    config = {
+        'name': 'request_image',
+        'title': 'request-from-line-bot',
+        'description': 'nthu wsn term project'
+    }
+    print("Uploading image... ")
+    image = client.upload_from_path('./request.jpg', config=config, anon=False)
+    print("Done")
+	return image['link']
 
 class cmd_handler:
 	def __init__(self, users_info, RDS_db):

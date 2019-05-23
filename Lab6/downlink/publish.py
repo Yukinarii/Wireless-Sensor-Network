@@ -38,12 +38,12 @@ class prpcrypt():
 
 
 def main():
-    MQTTTopicServerIP = "localhost"
+    MQTTTopicServerIP = "192.168.137.219"
     MQTTTopicServerPort = 1883
     MQTTTopicName = "wsn_lab/test"
     pc = prpcrypt(key = '0000000107062533')
 
-    Message = intput('>>')
+    Message = input('>>')
 
     EncryptMessage = pc.encrypt(str(Message))
     # d = pc.decrypt(EncryptMessage)

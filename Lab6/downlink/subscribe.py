@@ -60,7 +60,7 @@ def main():
     client.on_message = on_message
 
     try:
-        client.connect("192.168.137.1", 1883, 60)
+        client.connect("192.168.137.219", 1883, 60)
         client.loop_forever()
     except KeyboardInterrupt:
         client.disconnect() 
