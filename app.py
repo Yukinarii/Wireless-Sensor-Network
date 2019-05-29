@@ -177,7 +177,7 @@ class input_cli:  #always open a receive slot for gateway
             elif command[0] == 'camera':
                 capture_pic()
                 image_url = upload_image()
-                return_msg = ImageSendMessage(original_url = image_url,
+                return_msg = ImageSendMessage(original_content_url = image_url,
                                               preview_image_url = image_url)
                 try:
                     line_bot_api.reply_message(self.replyToken, return_msg)
